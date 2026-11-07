@@ -1,0 +1,173 @@
+getgenv().RAYFIELD_SECURE = true
+
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
+
+local BlackTheme = {
+    WindowColor = ColorSequence.new(Color3.fromRGB(0, 0, 0)),
+    ShadowColor = Color3.fromRGB(0, 0, 0),
+    LiveAnimation = false,
+    ElementTransparency = 0,
+    ElementStroke = Color3.fromRGB(0, 0, 0),
+    ElementGradient = ColorSequence.new(Color3.fromRGB(0, 0, 0)),
+    AccentColor = Color3.fromRGB(0, 0, 0),
+    AccentStroke = Color3.fromRGB(18, 18, 18),
+    NeutralButton = Color3.fromRGB(0, 0, 0),
+    NeutralButtonHover = Color3.fromRGB(12, 12, 12),
+    TitlingColor = Color3.fromRGB(255, 255, 255),
+    ContentColor = Color3.fromRGB(220, 220, 220),
+}
+
+local Window = Rayfield:CreateWindow({
+    name = "Orbit",
+    subtitle = "Hitbox Edition",
+    theme = BlackTheme,
+    sidebarLayout = true,
+})
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+local HitboxEnabled = false
+local HitboxSize = Vector3.new(15, 15, 15)
+local HitboxTransparency = 0.6
+local HitboxColor = Color3.fromRGB(255, 0, 100)
+
+local OriginalSizes = {}
+local HitboxConnection
+
+local function applyHitbox(char)
+    if not char or char == LocalPlayer.Character then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    if not OriginalSizes[char] then
+        OriginalSizes[char] = hrp.Size
+    end
+
+    hrp.Size = HitboxSize
+    hrp.Transparency = HitboxTransparency
+    hrp.Color = HitboxColor
+    hrp.Material = Enum.Material.Neon
+    hrp.CanCollide = false
+end
+
+local function restoreAllHitboxes()
+    for char, originalSize in pairs(OriginalSizes) do
+        if char and char.Parent then
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.Size = originalSize
+                hrp.Transparency = 0
+                hrp.Color = Color3.fromRGB(255, 255, 255)
+                hrp.Material = Enum.Material.Plastic
+            end
+        end
+    end
+    table.clear(OriginalSizes)
+end
+
+local HitboxTab = Window:CreateTab({ name = "Hitbox" })
+
+HitboxTab:CreateToggle({
+    name = "Hitbox Expander",
+    value = false,
+    callback = function(enabled)
+        HitboxEnabled = enabled
+        if enabled then
+            HitboxConnection = RunService.Heartbeat:Connect(function()
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character then
+                        applyHitbox(player.Character)
+                    end
+                end
+            end)
+        else
+            if HitboxConnection then
+                HitboxConnection:Disconnect()
+                HitboxConnection = nil
+            end
+            restoreAllHitboxes()
+        end
+    end,
+})
+
+HitboxTab:CreateInput({
+    name = "Hitbox Size X",
+    range = {0, 50},
+    increment = 1,
+    value = 15,
+    callback = function(val)
+        HitboxSize = Vector3.new(val, HitboxSize.Y, HitboxSize.Z)
+    end,
+})
+
+HitboxTab:CreateInput({
+    name = "Hitbox Size Y",
+    range = {0, 50},
+    increment = 1,
+    value = 15,
+    callback = function(val)
+        HitboxSize = Vector3.new(HitboxSize.X, val, HitboxSize.Z)
+    end,
+})
+
+HitboxTab:CreateInput({
+    name = "Hitbox Size Z",
+    range = {0, 50},
+    increment = 1,
+    value = 15,
+    callback = function(val)
+        HitboxSize = Vector3.new(HitboxSize.X, HitboxSize.Y, val)
+    end,
+})
+
+HitboxTab:CreateSlider({
+    name = "Hitbox Transparency",
+    range = {0, 100},
+    increment = 1,
+    value = 60,
+    callback = function(val)
+        HitboxTransparency = val / 100
+    end,
+})
+
+HitboxTab:CreateColorPicker({
+    name = "Hitbox Color",
+    color = Color3.fromRGB(255, 0, 100),
+    callback = function(newColor)
+        HitboxColor = newColor
+    end,
+})
+
+HitboxTab:CreateDropdown({
+    name = "Hitbox Color Preset",
+    options = {"Pink", "Red", "Blue", "Green", "Purple", "White"},
+    value = "Pink",
+    callback = function(preset)
+        local presets = {
+            Pink = Color3.fromRGB(255, 0, 100),
+            Red = Color3.fromRGB(255, 40, 40),
+            Blue = Color3.fromRGB(40, 120, 255),
+            Green = Color3.fromRGB(40, 255, 100),
+            Purple = Color3.fromRGB(170, 70, 255),
+            White = Color3.fromRGB(255, 255, 255),
+        }
+        if presets[preset] then
+            HitboxColor = presets[preset]
+        end
+    end,
+})
+
+HitboxTab:CreateButton({
+    name = "Unload Orbit",
+    callback = function()
+        HitboxEnabled = false
+        if HitboxConnection then
+            HitboxConnection:Disconnect()
+            HitboxConnection = nil
+        end
+        restoreAllHitboxes()
+        Window:Unload()
+    end,
+})
